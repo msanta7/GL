@@ -1,0 +1,139 @@
+
+CREATE DATABASE IF NOT EXISTS gestion_dechets
+
+USE gestion_dechets;
+
+-- =============================================
+-- TABLE UTILISATEUR (Table principale)
+-- =============================================
+CREATE TABLE UTILISATEUR (
+    id_utilisateur INT AUTO_INCREMENT PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    telephone VARCHAR(20),
+    role ENUM('citoyen', 'conducteur', 'agent_collecteur', 'agent_tri', 'administrateur') NOT NULL,
+    mot_de_passe VARCHAR(255) NOT NULL,
+
+);
+
+-- =============================================
+-- TABLES SPÉCIALISÉES
+-- =============================================
+CREATE TABLE CITOYEN (
+    id_utilisateur INT PRIMARY KEY,
+    adresse_complete VARCHAR(200) NOT NULL,
+    date_inscription DATE,
+    
+    FOREIGN KEY (id_utilisateur) REFERENCES UTILISATEUR(id_utilisateur) ON DELETE CASCADE,
+) ;
+
+CREATE TABLE CONDUCTEUR (
+    camion_id INT,
+    
+    FOREIGN KEY (id_utilisateur) REFERENCES UTILISATEUR(id_utilisateur) ON DELETE CASCADE,
+);
+
+CREATE TABLE AGENT_COLLECTEUR (
+    id_utilisateur INT PRIMARY KEY,
+    
+    FOREIGN KEY (id_utilisateur) REFERENCES UTILISATEUR(id_utilisateur) ON DELETE CASCADE,
+);
+
+CREATE TABLE AGENT_TRI (
+    id_utilisateur INT PRIMARY KEY,
+
+    
+    FOREIGN KEY (id_utilisateur) REFERENCES UTILISATEUR(id_utilisateur) ON DELETE CASCADE,
+);
+
+CREATE TABLE ADMINISTRATEUR (
+    id_utilisateur INT PRIMARY KEY,
+
+    
+    FOREIGN KEY (id_utilisateur) REFERENCES UTILISATEUR(id_utilisateur) ON DELETE CASCADE
+);
+
+-- =============================================
+-- TABLE SIGNALEMENT
+-- =============================================
+CREATE TABLE SIGNALEMENT (
+    id_signalement INT AUTO_INCREMENT PRIMARY KEY,
+    date_signalement DATETIME DEFAULT CURRENT_TIMESTAMP,
+    localisation VARCHAR(200) NOT NULL,
+    description TEXT,
+    etat ENUM('nouveau', 'en_cours', 'termine', 'annule') DEFAULT 'nouveau',
+    id_citoyen INT NOT NULL,
+    
+    FOREIGN KEY (id_citoyen) REFERENCES CITOYEN(id_utilisateur) ON DELETE CASCADE,
+
+);
+
+-- =============================================
+-- TABLE INTERVENTION
+-- =============================================
+CREATE TABLE INTERVENTION (
+    id_intervention INT AUTO_INCREMENT PRIMARY KEY,
+    date_planification DATETIME NOT NULL,
+    date_realisation DATETIME,
+    statut ENUM('planifiee', 'en_cours', 'terminee', 'annulee'),
+    notes TEXT,
+    id_conducteur INT NOT NULL,
+    id_signalement INT NOT NULL,
+    
+    FOREIGN KEY (id_conducteur) REFERENCES CONDUCTEUR(id_utilisateur),
+    FOREIGN KEY (id_signalement) REFERENCES SIGNALEMENT(id_signalement),
+
+);
+
+-- =============================================
+-- TABLE COLLECTE
+-- =============================================
+CREATE TABLE COLLECTE (
+    id_collecte INT AUTO_INCREMENT PRIMARY KEY,
+    date_collecte DATETIME DEFAULT CURRENT_TIMESTAMP,
+    quantite_collectee DECIMAL(10,2) CHECK (quantite_collectee >= 0),
+    poids DECIMAL(10,2) CHECK (poids >= 0),
+    id_intervention INT NOT NULL,
+    id_agent_collecteur INT NOT NULL,
+    
+    FOREIGN KEY (id_intervention) REFERENCES INTERVENTION(id_intervention),
+    FOREIGN KEY (id_agent_collecteur) REFERENCES AGENT_COLLECTEUR(id_utilisateur),
+
+);
+
+
+-- =============================================
+-- TABLE DECHET
+-- =============================================
+CREATE TABLE DECHET (
+    id_dechet INT AUTO_INCREMENT PRIMARY KEY,
+    type VARCHAR(50) NOT NULL,
+    statut_tri ENUM('non_trie', 'en_cours', 'trie', 'recycle', 'elimine') DEFAULT 'non_trie',
+    date_tri DATETIME,
+    id_collecte INT NOT NULL,
+    id_agent_tri INT,
+    id_stockage INT,
+    
+    FOREIGN KEY (id_collecte) REFERENCES COLLECTE(id_collecte),
+    FOREIGN KEY (id_agent_tri) REFERENCES AGENT_TRI(id_utilisateur),
+    FOREIGN KEY (id_stockage) REFERENCES STOCKAGE(id_stockage),
+);
+
+-- =============================================
+-- TABLE RAPPORT_TRI
+-- =============================================
+CREATE TABLE RAPPORT_TRI (
+    id_rapport_tri INT AUTO_INCREMENT PRIMARY KEY,
+    date_generation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    periode_debut DATE NOT NULL,
+    periode_fin DATE NOT NULL,
+    quantite_triee DECIMAL(10,2),
+    taux_recyclage DECIMAL(5,2) CHECK (taux_recyclage BETWEEN 0 AND 100),
+    efficacite_tri DECIMAL(5,2),
+    id_agent_tri INT NOT NULL,
+    
+    FOREIGN KEY (id_agent_tri) REFERENCES AGENT_TRI(id_utilisateur),
+    INDEX idx_date_generation (date_generation),
+    INDEX idx_periode (periode_debut, periode_fin),
+    INDEX idx_agent (id_agent_tri)
+) ENGINE=InnoDB;
+;
